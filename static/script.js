@@ -5,20 +5,19 @@ const labels = [
 
 let currentMode = "webcam";
 
-// Restored UI Toggle Logic
 function setMode(mode) {
     currentMode = mode;
+
     document.getElementById("webcam-section").classList.toggle("hidden", mode !== "webcam");
     document.getElementById("upload-section").classList.toggle("hidden", mode !== "upload");
-    
-    // Reset the main text when switching
-    document.getElementById("mainEmotion").innerText = "Waiting for Data...";
+
+    // Reset UI slightly when switching modes
+    document.getElementById("mainEmotion").innerText = "No Data";
     labels.forEach(label => {
         document.getElementById(label).style.width = "0%";
     });
 }
 
-// Show the selected filename on the button
 document.getElementById("fileInput").addEventListener("change", function () {
     const label = document.querySelector(".file-label");
     if (this.files.length > 0) {
@@ -26,7 +25,7 @@ document.getElementById("fileInput").addEventListener("change", function () {
     }
 });
 
-// Update the progress bars and main text
+// Update UI bars + dominant emotion
 function updateUI(data) {
     let maxVal = 0;
     let maxIdx = 0;
@@ -44,7 +43,20 @@ function updateUI(data) {
         labels[maxIdx].toUpperCase() + " (" + maxVal.toFixed(2) + ")";
 }
 
-// Handle the upload and analysis
+// Live Webcam Updates (Runs every 400ms)
+setInterval(async () => {
+    if (currentMode !== "webcam") return;
+
+    try {
+        const res = await fetch('/probs');
+        const data = await res.json();
+        if (data.length) updateUI(data);
+    } catch (err) {
+        console.error("Error fetching live probabilities:", err);
+    }
+}, 400);
+
+// Upload Analysis
 async function uploadImage() {
     const input = document.getElementById("fileInput");
 
@@ -73,6 +85,6 @@ async function uploadImage() {
 
     } catch (err) {
         console.error("Upload failed:", err);
-        alert("Upload failed. Check the console.");
+        alert("Upload failed. Check console.");
     }
 }

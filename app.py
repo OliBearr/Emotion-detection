@@ -1,75 +1,82 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, Response, request, jsonify
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import traceback
-import torch # We need this to control memory
-import gc    # Garbage collector to free up RAM
-
-# ---------------------------------------------------------
-# MEMORY OPTIMIZATIONS FOR RENDER FREE TIER
-# ---------------------------------------------------------
-# 1. Force PyTorch to only use 1 thread (stops huge RAM spikes)
-torch.set_num_threads(1)
 
 app = Flask(__name__)
 
-try:
-    model = YOLO("models/best.onnx")
-except Exception as e:
-    print(f"FAILED TO LOAD MODEL: {e}")
-    model = None
+# Load your full model
+model = YOLO("models/best.pt")
+
+# Initialize the webcam
+cap = cv2.VideoCapture(0)
+
+# Global variable to store the latest webcam probabilities
+last_probs = [0] * 8
+
+def generate():
+    global last_probs
+    while True:
+        success, frame = cap.read()
+        if not success:
+            continue
+
+        # Run inference on the webcam frame
+        results = model(frame, imgsz=224)
+
+        # Update the global probabilities
+        if results[0].probs is not None:
+            last_probs = results[0].probs.data.tolist()
+
+        # Get the frame with YOLO bounding boxes/labels drawn on it
+        annotated = results[0].plot()
+
+        # Encode the frame to JPEG
+        _, buffer = cv2.imencode('.jpg', annotated)
+        frame = buffer.tobytes()
+
+        # Yield the frame to the browser
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+@app.route("/video")
+def video():
+    # Route to stream the live webcam video
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route("/probs")
+def probs():
+    # Route for the JS to fetch the latest probabilities
+    return jsonify(last_probs)
+
 @app.route("/upload", methods=["POST"])
 def upload():
-    try:
-        if model is None:
-            return jsonify({"error": "Server Error: YOLO model failed to load on startup."}), 500
+    global last_probs
 
-        if "file" not in request.files:
-            return jsonify({"error": "No file uploaded"}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
 
-        file = request.files["file"]
+    file = request.files["file"]
 
-        if file.filename == "":
-            return jsonify({"error": "Empty file"}), 400
+    if file.filename == "":
+        return jsonify({"error": "Empty file"}), 400
 
-        # Read the uploaded image file into OpenCV
-        img = np.frombuffer(file.read(), np.uint8)
-        img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+    img = np.frombuffer(file.read(), np.uint8)
+    img = cv2.imdecode(img, cv2.IMREAD_COLOR)
 
-        if img is None:
-            return jsonify({"error": "Invalid image format"}), 400
+    if img is None:
+        return jsonify({"error": "Invalid image"}), 400
 
-        # ---------------------------------------------------------
-        # 2. Run inference inside a "no_grad" block. 
-        # This tells PyTorch not to store memory for training.
-        # ---------------------------------------------------------
-        with torch.no_grad():
-            results = model(img, imgsz=224)
+    results = model(img, imgsz=224)
 
-        # Extract probabilities safely
-        probs = [0] * 8
-        if hasattr(results[0], 'probs') and results[0].probs is not None:
-            probs = results[0].probs.data.tolist()
+    if results[0].probs is not None:
+        last_probs = results[0].probs.data.tolist()
 
-        # ---------------------------------------------------------
-        # 3. Immediately delete heavy variables and force garbage collection
-        # ---------------------------------------------------------
-        del img
-        del results
-        gc.collect()
-
-        return jsonify(probs)
-
-    except Exception as e:
-        print(f"BACKEND ERROR: {str(e)}")
-        traceback.print_exc()
-        return jsonify({"error": f"Python Crash: {str(e)}"}), 500
+    return jsonify(last_probs)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
