@@ -3,10 +3,17 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 import traceback
+import torch # We need this to control memory
+import gc    # Garbage collector to free up RAM
+
+# ---------------------------------------------------------
+# MEMORY OPTIMIZATIONS FOR RENDER FREE TIER
+# ---------------------------------------------------------
+# 1. Force PyTorch to only use 1 thread (stops huge RAM spikes)
+torch.set_num_threads(1)
 
 app = Flask(__name__)
 
-# FIXED PATH (important for Render)
 try:
     model = YOLO("models/best.pt")
 except Exception as e:
@@ -38,18 +45,28 @@ def upload():
         if img is None:
             return jsonify({"error": "Invalid image format"}), 400
 
-        # Run inference
-        results = model(img, imgsz=224)
+        # ---------------------------------------------------------
+        # 2. Run inference inside a "no_grad" block. 
+        # This tells PyTorch not to store memory for training.
+        # ---------------------------------------------------------
+        with torch.no_grad():
+            results = model(img, imgsz=224)
 
         # Extract probabilities safely
         probs = [0] * 8
         if hasattr(results[0], 'probs') and results[0].probs is not None:
             probs = results[0].probs.data.tolist()
 
+        # ---------------------------------------------------------
+        # 3. Immediately delete heavy variables and force garbage collection
+        # ---------------------------------------------------------
+        del img
+        del results
+        gc.collect()
+
         return jsonify(probs)
 
     except Exception as e:
-        # This catches the crash and sends the exact Python error to your screen
         print(f"BACKEND ERROR: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Python Crash: {str(e)}"}), 500
