@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 import os
+import time
 
 app = Flask(__name__)
 
@@ -20,6 +21,7 @@ def generate():
     while True:
         success, frame = cap.read()
         if not success:
+            time.sleep(1) 
             continue
 
         results = model(frame, imgsz=224)
