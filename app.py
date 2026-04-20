@@ -15,7 +15,7 @@ torch.set_num_threads(1)
 app = Flask(__name__)
 
 try:
-    model = YOLO("models/best.pt")
+    model = YOLO("models/best.onnx")
 except Exception as e:
     print(f"FAILED TO LOAD MODEL: {e}")
     model = None
