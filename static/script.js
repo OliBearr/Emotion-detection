@@ -10,6 +10,8 @@ function setMode(mode) {
 
     document.getElementById("webcam-section").classList.toggle("hidden", mode !== "webcam");
     document.getElementById("upload-section").classList.toggle("hidden", mode !== "upload");
+
+    resetUI();
 }
 
 document.getElementById("fileInput").addEventListener("change", function () {
@@ -50,15 +52,27 @@ setInterval(async () => {
 
 // Upload
 async function uploadImage() {
-    const file = document.getElementById("fileInput").files[0];
+    const input = document.getElementById("fileInput");
+
+    if (!input.files || input.files.length === 0) {
+        alert("Please select an image first");
+        return;
+    }
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", input.files[0]); // MUST be "file"
 
-    const res = await fetch('/upload', {
-        method: 'POST',
-        body: formData
-    });
+    try {
+        const res = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
 
-    const data = await res.json();
-    updateUI(data);
+        const data = await res.json();
+        updateUI(data);
+
+    } catch (err) {
+        console.error("Upload failed:", err);
+        alert("Upload failed. Check console.");
+    }
 }
