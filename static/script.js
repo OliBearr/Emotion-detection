@@ -5,15 +5,20 @@ const labels = [
 
 let currentMode = "webcam";
 
+// Restored UI Toggle Logic
 function setMode(mode) {
     currentMode = mode;
-
     document.getElementById("webcam-section").classList.toggle("hidden", mode !== "webcam");
     document.getElementById("upload-section").classList.toggle("hidden", mode !== "upload");
-
-    resetUI();
+    
+    // Reset the main text when switching
+    document.getElementById("mainEmotion").innerText = "Waiting for Data...";
+    labels.forEach(label => {
+        document.getElementById(label).style.width = "0%";
+    });
 }
 
+// Show the selected filename on the button
 document.getElementById("fileInput").addEventListener("change", function () {
     const label = document.querySelector(".file-label");
     if (this.files.length > 0) {
@@ -21,7 +26,7 @@ document.getElementById("fileInput").addEventListener("change", function () {
     }
 });
 
-// Update UI bars + dominant emotion
+// Update the progress bars and main text
 function updateUI(data) {
     let maxVal = 0;
     let maxIdx = 0;
@@ -39,18 +44,7 @@ function updateUI(data) {
         labels[maxIdx].toUpperCase() + " (" + maxVal.toFixed(2) + ")";
 }
 
-// Webcam updates
-setInterval(async () => {
-    if (currentMode !== "webcam") return;
-
-    const res = await fetch('/probs');
-    const data = await res.json();
-
-    if (data.length) updateUI(data);
-
-}, 400);
-
-// Upload
+// Handle the upload and analysis
 async function uploadImage() {
     const input = document.getElementById("fileInput");
 
@@ -60,7 +54,7 @@ async function uploadImage() {
     }
 
     const formData = new FormData();
-    formData.append("file", input.files[0]); // MUST be "file"
+    formData.append("file", input.files[0]);
 
     try {
         const res = await fetch("/upload", {
@@ -69,10 +63,16 @@ async function uploadImage() {
         });
 
         const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
         updateUI(data);
 
     } catch (err) {
         console.error("Upload failed:", err);
-        alert("Upload failed. Check console.");
+        alert("Upload failed. Check the console.");
     }
 }
