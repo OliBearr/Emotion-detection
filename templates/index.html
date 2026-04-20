@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emotion AI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🧠 Emotion Detection AI</h1>
+
+    <div class="controls">
+        <button onclick="setMode('webcam')">Webcam</button>
+        <button onclick="setMode('upload')">Upload</button>
+    </div>
+
+    <!-- Webcam -->
+    <div id="webcam-section" class="card">
+        <img src="/video" class="video">
+    </div>
+
+    <!-- Upload -->
+    <div id="upload-section" class="card hidden">
+        <input type="file" id="fileInput" hidden>
+        <label for="fileInput" class="file-label">Choose Image</label>
+        <button onclick="uploadImage()">Analyze</button>
+    </div>
+
+    <!-- Dominant emotion -->
+    <div class="card highlight">
+        <h2 id="mainEmotion">No Data</h2>
+    </div>
+
+    <!-- Emotion bars -->
+    <div class="card">
+        <div class="bar"><span>Anger</span><div class="progress"><div id="anger"></div></div></div>
+        <div class="bar"><span>Contempt</span><div class="progress"><div id="contempt"></div></div></div>
+        <div class="bar"><span>Disgust</span><div class="progress"><div id="disgust"></div></div></div>
+        <div class="bar"><span>Fear</span><div class="progress"><div id="fear"></div></div></div>
+        <div class="bar"><span>Happy</span><div class="progress"><div id="happy"></div></div></div>
+        <div class="bar"><span>Neutral</span><div class="progress"><div id="neutral"></div></div></div>
+        <div class="bar"><span>Sad</span><div class="progress"><div id="sad"></div></div></div>
+        <div class="bar"><span>Surprised</span><div class="progress"><div id="surprised"></div></div></div>
+    </div>
+
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
